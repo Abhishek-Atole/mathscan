@@ -1,0 +1,153 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(Windows) Debug MathScan",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/mathscan.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${env:PATH};C:/Qt/6.*/mingw*/bin;C:/Qt/Tools/mingw*/bin"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/Qt/Tools/mingw*/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build",
+            "visualizerFile": "c:\\Users\\abhia\\AppData\\Roaming\\Code\\User\\workspaceStorage\\04ed76fb610c23d3f33cb9b74778a4af\\tonka3000.qtvsctools\\qt.natvis.xml"
+        },
+        {
+            "name": "(Windows) Debug OCR Tool",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/ocr_tool.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${env:PATH};C:/Qt/6.*/mingw*/bin;C:/Qt/Tools/mingw*/bin"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/Qt/Tools/mingw*/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build",
+            "visualizerFile": "c:\\Users\\abhia\\AppData\\Roaming\\Code\\User\\workspaceStorage\\04ed76fb610c23d3f33cb9b74778a4af\\tonka3000.qtvsctools\\qt.natvis.xml"
+        },
+        {
+            "name": "(Windows) Qt Checker",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/qt_checker.exe",
+            "args": [
+                "--check-qt"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${env:PATH};C:/Qt/6.*/mingw*/bin;C:/Qt/Tools/mingw*/bin"
+                }
+            ],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/Qt/Tools/mingw*/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build",
+            "visualizerFile": "c:\\Users\\abhia\\AppData\\Roaming\\Code\\User\\workspaceStorage\\04ed76fb610c23d3f33cb9b74778a4af\\tonka3000.qtvsctools\\qt.natvis.xml"
+        },
+        {
+            "name": "(Linux) Debug MathScan",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/mathscan",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build",
+            "visualizerFile": "c:\\Users\\abhia\\AppData\\Roaming\\Code\\User\\workspaceStorage\\04ed76fb610c23d3f33cb9b74778a4af\\tonka3000.qtvsctools\\qt.natvis.xml"
+        },
+        {
+            "name": "(Linux) Debug OCR Tool",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/ocr_tool",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build",
+            "visualizerFile": "c:\\Users\\abhia\\AppData\\Roaming\\Code\\User\\workspaceStorage\\04ed76fb610c23d3f33cb9b74778a4af\\tonka3000.qtvsctools\\qt.natvis.xml"
+        },
+        {
+            "name": "(Linux) Qt Checker",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/qt_checker",
+            "args": [
+                "--check-qt"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build",
+            "visualizerFile": "c:\\Users\\abhia\\AppData\\Roaming\\Code\\User\\workspaceStorage\\04ed76fb610c23d3f33cb9b74778a4af\\tonka3000.qtvsctools\\qt.natvis.xml"
+        }
+    ]
+}
