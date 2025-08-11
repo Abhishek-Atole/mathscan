@@ -296,3 +296,5 @@ mathscan/
 - [CMake Qt Guide](https://doc.qt.io/qt-6/cmake-get-started.html)
 
 This setup provides a solid foundation for cross-platform C++ development with Qt6!
+#   m a t h s c a n  
+ 
