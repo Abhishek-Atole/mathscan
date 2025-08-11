@@ -34,6 +34,65 @@ endif()
 # Find Qt6 components
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui)
 
+# Find Tesseract OCR library
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+    pkg_check_modules(TESSERACT tesseract)
+    pkg_check_modules(LEPTONICA lept)
+endif()
+
+# Fallback: try to find Tesseract manually if pkg-config didn't work
+if(NOT TESSERACT_FOUND)
+    # Try common installation paths
+    find_path(TESSERACT_INCLUDE_DIR tesseract/baseapi.h
+        PATHS
+        /usr/include
+        /usr/local/include
+        "C:/Program Files/Tesseract-OCR/include"
+        "C:/tools/tesseract/include"
+        ${CMAKE_PREFIX_PATH}/include
+    )
+    
+    find_library(TESSERACT_LIBRARY tesseract
+        PATHS
+        /usr/lib
+        /usr/local/lib
+        "C:/Program Files/Tesseract-OCR/lib"
+        "C:/tools/tesseract/lib"
+        ${CMAKE_PREFIX_PATH}/lib
+    )
+    
+    find_library(LEPTONICA_LIBRARY lept leptonica
+        PATHS
+        /usr/lib
+        /usr/local/lib
+        "C:/Program Files/Tesseract-OCR/lib"
+        "C:/tools/tesseract/lib"
+        ${CMAKE_PREFIX_PATH}/lib
+    )
+    
+    if(TESSERACT_INCLUDE_DIR AND TESSERACT_LIBRARY)
+        set(TESSERACT_FOUND TRUE)
+        set(TESSERACT_INCLUDE_DIRS ${TESSERACT_INCLUDE_DIR})
+        set(TESSERACT_LIBRARIES ${TESSERACT_LIBRARY})
+        if(LEPTONICA_LIBRARY)
+            set(TESSERACT_LIBRARIES ${TESSERACT_LIBRARIES} ${LEPTONICA_LIBRARY})
+        endif()
+        message(STATUS "Found Tesseract: ${TESSERACT_LIBRARY}")
+    endif()
+endif()
+
+if(TESSERACT_FOUND)
+    message(STATUS "Tesseract OCR found - OCR functionality will be enabled")
+    add_definitions(-DTESSERACT_AVAILABLE)
+else()
+    message(WARNING "Tesseract OCR not found - OCR functionality will be disabled")
+    message(STATUS "To enable OCR, install Tesseract development libraries:")
+    message(STATUS "  Ubuntu/Debian: sudo apt-get install tesseract-ocr-dev libtesseract-dev libleptonica-dev")
+    message(STATUS "  Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki")
+    message(STATUS "  macOS: brew install tesseract leptonica")
+endif()
+
 # Check if Qt6 was found
 if(NOT Qt6_FOUND)
     message(FATAL_ERROR "Qt6 not found! Please install Qt6 or set CMAKE_PREFIX_PATH")
@@ -56,9 +115,18 @@ add_executable(mathscan src/main.cpp)
 target_link_libraries(mathscan Qt6::Core Qt6::Widgets Qt6::Gui)
 
 # OCR & PPT Automation Tool executable
-add_executable(ocr_tool src/ocr_main.cpp src/mainwindow.cpp include/mainwindow.h)
-target_include_directories(ocr_tool PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(ocr_tool Qt6::Core Qt6::Widgets Qt6::Gui)
+if(TESSERACT_FOUND)
+    add_executable(ocr_tool src/ocr_main.cpp src/mainwindow.cpp src/ocrprocessor.cpp include/mainwindow.h include/ocrprocessor.h)
+    target_include_directories(ocr_tool PRIVATE ${CMAKE_SOURCE_DIR}/include ${TESSERACT_INCLUDE_DIRS})
+    target_link_libraries(ocr_tool Qt6::Core Qt6::Widgets Qt6::Gui ${TESSERACT_LIBRARIES})
+    target_compile_definitions(ocr_tool PRIVATE TESSERACT_AVAILABLE)
+else()
+    # Build without OCR functionality
+    add_executable(ocr_tool src/ocr_main.cpp src/mainwindow.cpp include/mainwindow.h)
+    target_include_directories(ocr_tool PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_link_libraries(ocr_tool Qt6::Core Qt6::Widgets Qt6::Gui)
+    message(STATUS "Building OCR tool without Tesseract support")
+endif()
 
 # Qt checker utility executable
 add_executable(qt_checker src/qt_checker.cpp)
