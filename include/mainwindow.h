@@ -28,12 +28,18 @@
 #include <QMenuBar>
 #include <QMimeData>
 #include <QProgressBar>
+
+#ifdef TESSERACT_AVAILABLE
+#include "ocrprocessor.h"
+#endif
 #include <QPushButton>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTextEdit>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <QWidget>
+#include <memory>
 
 // Forward declarations for better compilation times
 class QTimer;
@@ -98,6 +104,10 @@ class MainWindow : public QMainWindow {
     void onStartOCR();
     void onClearResults();
     void onConfigureOCR();
+    void onOCRModeChanged();
+    void performOCROnCurrentImage();
+    void updateOCRProgress(int percentage);
+    void displayOCRResults(const QString &text, float confidence);
 
     // Help and information
     void onAbout();
@@ -175,6 +185,14 @@ class MainWindow : public QMainWindow {
     QSettings *m_settings;
     QString m_currentFilePath;
     bool m_operationInProgress;
+
+#ifdef TESSERACT_AVAILABLE
+    // OCR processing
+    std::unique_ptr<OCRProcessor> m_ocrProcessor;
+    OCRProcessor::ProcessingMode m_currentOCRMode;
+    QString m_lastOCRResult;
+    float m_lastOCRConfidence;
+#endif
 
     // Constants for UI layout
     static constexpr int DEFAULT_WINDOW_WIDTH = 900;

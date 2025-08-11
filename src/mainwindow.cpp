@@ -8,14 +8,22 @@
 #include "../include/mainwindow.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDebug>
 #include <QDesktopServices>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileInfo>
+#include <QFormLayout>
+#include <QGroupBox>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPixmap>
+#include <QRadioButton>
 #include <QSettings>
+#include <QSpinBox>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
@@ -27,12 +35,42 @@ MainWindow::MainWindow(QWidget *parent)
       m_centralWidget(nullptr),
       m_mainSplitter(nullptr),
       m_settings(nullptr),
-      m_operationInProgress(false) {
+      m_operationInProgress(false)
+#ifdef TESSERACT_AVAILABLE
+      ,
+      m_currentOCRMode(OCRProcessor::ProcessingMode::Auto),
+      m_lastOCRConfidence(0.0f)
+#endif
+{
     qCInfo(gui) << "Initializing MainWindow...";
 
     try {
         // Initialize settings
         m_settings = new QSettings(this);
+
+#ifdef TESSERACT_AVAILABLE
+        // Initialize OCR processor
+        try {
+            OCRProcessor::OCRConfig config;
+            config.language = m_settings->value("ocr/language", "eng").toString();
+            config.mode = static_cast<OCRProcessor::ProcessingMode>(
+                m_settings->value("ocr/mode", static_cast<int>(OCRProcessor::ProcessingMode::Auto))
+                    .toInt());
+            config.dpi = m_settings->value("ocr/dpi", 300).toInt();
+            config.preprocessImage = m_settings->value("ocr/preprocess", true).toBool();
+            config.enableConfidenceScoring =
+                m_settings->value("ocr/confidence_scoring", true).toBool();
+            config.minimumConfidence = m_settings->value("ocr/min_confidence", 60).toInt();
+
+            m_ocrProcessor = std::make_unique<OCRProcessor>(config);
+            m_currentOCRMode = config.mode;
+
+            qCInfo(gui) << "OCR processor initialized successfully";
+        } catch (const std::exception &e) {
+            qCWarning(gui) << "Failed to initialize OCR processor:" << e.what();
+            // Continue without OCR functionality
+        }
+#endif
 
         // Set up the user interface
         setupUserInterface();
@@ -541,4 +579,273 @@ void MainWindow::logMessage(const QString &message, bool isError) {
     } else {
         qCInfo(gui) << "UI Info:" << message;
     }
+}
+
+#ifdef TESSERACT_AVAILABLE
+void MainWindow::onOCRModeChanged() {
+    // Update OCR mode based on UI selection
+    // This will be connected to a combo box or radio buttons
+    if (m_ocrProcessor) {
+        auto config = m_ocrProcessor->getConfig();
+        config.mode = m_currentOCRMode;
+        m_ocrProcessor->setConfig(config);
+
+        // Save setting
+        m_settings->setValue("ocr/mode", static_cast<int>(m_currentOCRMode));
+
+        qCInfo(gui) << "OCR mode changed to:" << static_cast<int>(m_currentOCRMode);
+    }
+}
+
+void MainWindow::performOCROnCurrentImage() {
+    if (!m_ocrProcessor || m_currentFilePath.isEmpty()) {
+        qCWarning(gui) << "Cannot perform OCR: processor not available or no image loaded";
+        return;
+    }
+
+    qCInfo(gui) << "Starting OCR processing on:" << m_currentFilePath;
+
+    // Start operation
+    m_operationInProgress = true;
+    setOperationEnabled(false);
+    m_progressBar->setVisible(true);
+    m_progressBar->setValue(0);
+    updateProgress(10, "Starting OCR processing...");
+
+    try {
+        updateProgress(30, "Loading and preprocessing image...");
+
+        // Perform OCR
+        auto result = m_ocrProcessor->performOCR(m_currentFilePath);
+
+        updateProgress(90, "Processing OCR results...");
+
+        if (result.success) {
+            m_lastOCRResult = result.text;
+            m_lastOCRConfidence = result.confidence;
+
+            displayOCRResults(result.text, result.confidence);
+
+            updateProgress(100, QString("OCR completed successfully - Confidence: %1%")
+                                    .arg(result.confidence, 0, 'f', 1));
+
+            qCInfo(gui) << "OCR processing successful:"
+                        << "Text length:" << result.text.length()
+                        << "Confidence:" << result.confidence << "Time:" << result.processingTimeMs
+                        << "ms";
+
+        } else {
+            QString errorMsg = QString("OCR processing failed: %1").arg(result.errorMessage);
+            QMessageBox::warning(this, "OCR Error", errorMsg);
+            qCWarning(gui) << errorMsg;
+            updateProgress(0, "OCR processing failed");
+        }
+
+    } catch (const std::exception &e) {
+        QString errorMsg = QString("OCR processing exception: %1").arg(e.what());
+        QMessageBox::critical(this, "OCR Error", errorMsg);
+        qCCritical(gui) << errorMsg;
+        updateProgress(0, "OCR processing failed");
+    }
+
+    // Complete operation
+    onOperationCompleted();
+}
+
+void MainWindow::updateOCRProgress(int percentage) {
+    updateProgress(percentage, QString("OCR processing... %1%").arg(percentage));
+}
+
+void MainWindow::displayOCRResults(const QString &text, float confidence) {
+    if (!text.isEmpty()) {
+        // Display results in the text output area
+        m_outputTextEdit->setPlainText(text);
+
+        // Update status with confidence information
+        QString statusMsg = QString("OCR completed - %1 characters extracted (Confidence: %2%)")
+                                .arg(text.length())
+                                .arg(confidence, 0, 'f', 1);
+
+        onStatusUpdate(statusMsg);
+
+        // Log detailed results
+        qCInfo(gui) << "OCR Results:"
+                    << "Characters:" << text.length() << "Lines:" << text.split('\n').size()
+                    << "Confidence:" << confidence;
+
+        // Enable export functionality since we now have results
+        m_exportAction->setEnabled(true);
+
+    } else {
+        m_outputTextEdit->setPlainText("No text detected in the image.");
+        onStatusUpdate("OCR completed - No text detected");
+    }
+}
+#endif
+
+// Updated OCR-related slot implementations
+void MainWindow::onStartOCR() {
+#ifdef TESSERACT_AVAILABLE
+    if (m_currentFilePath.isEmpty()) {
+        QMessageBox::information(this, "No Image", "Please load an image file first.");
+        return;
+    }
+
+    if (!m_ocrProcessor) {
+        QMessageBox::warning(
+            this, "OCR Not Available",
+            "OCR functionality is not available. Please check Tesseract installation.");
+        return;
+    }
+
+    performOCROnCurrentImage();
+#else
+    QMessageBox::information(this, "OCR Not Available",
+                             "This version was built without OCR support.\n"
+                             "Please install Tesseract and rebuild the application.");
+#endif
+}
+
+void MainWindow::onClearResults() {
+    m_outputTextEdit->clear();
+    m_lastOCRResult.clear();
+    m_lastOCRConfidence = 0.0f;
+    m_exportAction->setEnabled(false);
+    onStatusUpdate("Results cleared");
+    qCInfo(gui) << "OCR results cleared";
+}
+
+void MainWindow::onConfigureOCR() {
+#ifdef TESSERACT_AVAILABLE
+    if (!m_ocrProcessor) {
+        QMessageBox::warning(this, "OCR Not Available", "OCR functionality is not available.");
+        return;
+    }
+
+    // Create a simple configuration dialog
+    QDialog configDialog(this);
+    configDialog.setWindowTitle("OCR Configuration");
+    configDialog.setModal(true);
+
+    auto layout = new QVBoxLayout(&configDialog);
+
+    // Language selection
+    auto langGroup = new QGroupBox("Language", &configDialog);
+    auto langLayout = new QVBoxLayout(langGroup);
+    auto langCombo = new QComboBox(langGroup);
+
+    // Get available languages
+    QStringList availableLanguages = m_ocrProcessor->getAvailableLanguages();
+    langCombo->addItems(availableLanguages);
+
+    auto currentConfig = m_ocrProcessor->getConfig();
+    int currentLangIndex = availableLanguages.indexOf(currentConfig.language);
+    if (currentLangIndex >= 0) {
+        langCombo->setCurrentIndex(currentLangIndex);
+    }
+
+    langLayout->addWidget(langCombo);
+    layout->addWidget(langGroup);
+
+    // Processing mode selection
+    auto modeGroup = new QGroupBox("Processing Mode", &configDialog);
+    auto modeLayout = new QVBoxLayout(modeGroup);
+
+    auto autoRadio = new QRadioButton("Auto Detect", modeGroup);
+    auto textRadio = new QRadioButton("Text Only", modeGroup);
+    auto equationRadio = new QRadioButton("Mathematical Equations", modeGroup);
+    auto mixedRadio = new QRadioButton("Mixed Text and Equations", modeGroup);
+
+    switch (currentConfig.mode) {
+        case OCRProcessor::ProcessingMode::Auto:
+            autoRadio->setChecked(true);
+            break;
+        case OCRProcessor::ProcessingMode::Text:
+            textRadio->setChecked(true);
+            break;
+        case OCRProcessor::ProcessingMode::Equations:
+            equationRadio->setChecked(true);
+            break;
+        case OCRProcessor::ProcessingMode::Mixed:
+            mixedRadio->setChecked(true);
+            break;
+    }
+
+    modeLayout->addWidget(autoRadio);
+    modeLayout->addWidget(textRadio);
+    modeLayout->addWidget(equationRadio);
+    modeLayout->addWidget(mixedRadio);
+    layout->addWidget(modeGroup);
+
+    // Advanced settings
+    auto advancedGroup = new QGroupBox("Advanced Settings", &configDialog);
+    auto advancedLayout = new QFormLayout(advancedGroup);
+
+    auto dpiSpinBox = new QSpinBox(advancedGroup);
+    dpiSpinBox->setRange(72, 600);
+    dpiSpinBox->setValue(currentConfig.dpi);
+    advancedLayout->addRow("DPI:", dpiSpinBox);
+
+    auto preprocessCheck = new QCheckBox("Enable image preprocessing", advancedGroup);
+    preprocessCheck->setChecked(currentConfig.preprocessImage);
+    advancedLayout->addRow(preprocessCheck);
+
+    auto confidenceSpinBox = new QSpinBox(advancedGroup);
+    confidenceSpinBox->setRange(0, 100);
+    confidenceSpinBox->setValue(currentConfig.minimumConfidence);
+    advancedLayout->addRow("Min Confidence (%):", confidenceSpinBox);
+
+    layout->addWidget(advancedGroup);
+
+    // Dialog buttons
+    auto buttonBox =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &configDialog);
+    connect(buttonBox, &QDialogButtonBox::accepted, &configDialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &configDialog, &QDialog::reject);
+    layout->addWidget(buttonBox);
+
+    // Show dialog and apply settings if accepted
+    if (configDialog.exec() == QDialog::Accepted) {
+        OCRProcessor::OCRConfig newConfig = currentConfig;
+
+        // Apply language
+        newConfig.language = langCombo->currentText();
+
+        // Apply processing mode
+        if (autoRadio->isChecked()) {
+            newConfig.mode = OCRProcessor::ProcessingMode::Auto;
+        } else if (textRadio->isChecked()) {
+            newConfig.mode = OCRProcessor::ProcessingMode::Text;
+        } else if (equationRadio->isChecked()) {
+            newConfig.mode = OCRProcessor::ProcessingMode::Equations;
+        } else if (mixedRadio->isChecked()) {
+            newConfig.mode = OCRProcessor::ProcessingMode::Mixed;
+        }
+
+        // Apply advanced settings
+        newConfig.dpi = dpiSpinBox->value();
+        newConfig.preprocessImage = preprocessCheck->isChecked();
+        newConfig.minimumConfidence = confidenceSpinBox->value();
+
+        // Update processor configuration
+        if (m_ocrProcessor->setConfig(newConfig)) {
+            m_currentOCRMode = newConfig.mode;
+
+            // Save settings
+            m_settings->setValue("ocr/language", newConfig.language);
+            m_settings->setValue("ocr/mode", static_cast<int>(newConfig.mode));
+            m_settings->setValue("ocr/dpi", newConfig.dpi);
+            m_settings->setValue("ocr/preprocess", newConfig.preprocessImage);
+            m_settings->setValue("ocr/min_confidence", newConfig.minimumConfidence);
+
+            onStatusUpdate("OCR configuration updated");
+            qCInfo(gui) << "OCR configuration updated successfully";
+        } else {
+            QMessageBox::warning(this, "Configuration Error", "Failed to apply OCR configuration.");
+        }
+    }
+#else
+    QMessageBox::information(this, "OCR Not Available",
+                             "This version was built without OCR support.");
+#endif
 }
