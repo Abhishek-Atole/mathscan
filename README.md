@@ -37,7 +37,7 @@ setup-env.bat check      # Run Qt environment checker
 3. Press `F7` to build
 4. Press `F5` to run and debug
 
-### Option 3: Manual Command Line
+### Option 3: Manual Command Line 
 
 ```powershell
 # Set environment (add to your PowerShell profile for persistence)
@@ -296,5 +296,6 @@ mathscan/
 - [CMake Qt Guide](https://doc.qt.io/qt-6/cmake-get-started.html)
 
 This setup provides a solid foundation for cross-platform C++ development with Qt6!
-#   m a t h s c a n  
+#   m a t h s c a n 
+ 
  
